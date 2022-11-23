@@ -1,6 +1,6 @@
 import Layout from '@/components/Layout'
 import React from 'react'
 
-export default function UserPage() {
+export default function AppPage() {
   return <Layout>UserPage</Layout>
 }
