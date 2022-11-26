@@ -198,6 +198,12 @@ export default function Invoice({ id }) {
                 <dt className='text-gray-600'>Tax</dt>
                 <dd className='font-medium text-gray-900'>&#8377;{tax}</dd>
               </div>
+              <div className='py-4 flex items-center justify-between'>
+                <dt className='text-gray-600'>Discount</dt>
+                <dd className='font-medium text-gray-900'>
+                  - &#8377;{discount}
+                </dd>
+              </div>
               {invoice?.attributes?.extra_charges.map((charge, idx) => (
                 <div
                   className='py-4 flex items-center justify-between'
@@ -209,12 +215,7 @@ export default function Invoice({ id }) {
                   </dd>
                 </div>
               ))}
-              <div className='py-4 flex items-center justify-between'>
-                <dt className='text-gray-600'>Discount</dt>
-                <dd className='font-medium text-gray-900'>
-                  - &#8377;{discount}
-                </dd>
-              </div>
+
               <div className='pt-4 flex items-center justify-between'>
                 <dt className='font-medium text-gray-900'>Order total</dt>
                 <dd className='font-medium text-rose-600'>&#8377;{total}</dd>

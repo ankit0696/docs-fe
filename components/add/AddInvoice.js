@@ -2,10 +2,14 @@ import { Fragment, useEffect, useState } from 'react'
 import axios from 'axios'
 import { API_URL } from '@/config/index'
 import qs from 'qs'
-import { BuildingOfficeIcon } from '@heroicons/react/24/outline'
+import {
+  BuildingOfficeIcon,
+  MinusCircleIcon,
+  MinusIcon,
+  PlusIcon,
+} from '@heroicons/react/24/outline'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
 }
@@ -14,11 +18,14 @@ export default function AddInvoice() {
   // fetch invoice data from api
   const [invoice, setInvoice] = useState(null)
   const [items, setItems] = useState([])
-  const [shipping, setShipping] = useState(0)
-  const [tax, setTax] = useState(0)
-  const [subTotal, setSubTotal] = useState(0)
-  const [total, setTotal] = useState(0)
-  const [discount, setDiscount] = useState(0)
+  const [shipping, setShipping] = useState()
+  const [tax, setTax] = useState()
+  const [subTotal, setSubTotal] = useState()
+  const [total, setTotal] = useState()
+  const [discount, setDiscount] = useState()
+  const [itemCharges, setItemCharges] = useState([])
+  const [products, setProducts] = useState([])
+  const [recText, setRecText] = useState()
 
   // Calculating item total
   const calcItemTotal = (item) => {
@@ -27,7 +34,7 @@ export default function AddInvoice() {
     item.item_charges.map((charge) => {
       itemTotal += charge.amount
     })
-    return itemTotal
+    return parseFloat(itemTotal)
   }
 
   // calculate subtotal
@@ -43,11 +50,18 @@ export default function AddInvoice() {
   const calcTotal = () => {
     let total = 0
     total += calcSubTotal()
-    total += shipping + tax
+    if (shipping > 0) {
+      total += parseFloat(shipping)
+    }
+    if (tax > 0) {
+      total += parseFloat(tax)
+    }
+    if (discount > 0) {
+      total -= parseFloat(discount)
+    }
     invoice?.attributes?.extra_charges.map((charge) => {
       total += charge.amount
     })
-    total -= discount
     return total
   }
   const addBill = async () => {
@@ -92,6 +106,31 @@ export default function AddInvoice() {
       })
     }
   }
+  const handleItemChargesChange = (idx, e) => {
+    const { name, value } = e.target
+    const list = [...itemCharges]
+    list[idx][name] = value
+    setItemCharges(list)
+  }
+
+  const handleRemoveItemCharges = (idx) => {
+    const list = [...itemCharges]
+    list.splice(idx, 1)
+    setItemCharges(list)
+  }
+
+  const handleProductsChange = (idx, e) => {
+    const { name, value } = e.target
+    const list = [...products]
+    list[idx][name] = value
+    setProducts(list)
+  }
+
+  const handleRemoveProduct = (idx) => {
+    const list = [...products]
+    list.splice(idx, 1)
+    setProducts(list)
+  }
 
   // fetch buyer data from api
   const [buyer, setBuyer] = useState([])
@@ -124,26 +163,43 @@ export default function AddInvoice() {
     fetchBuyer()
   }, [])
 
+  useEffect(() => {
+    setSubTotal(calcSubTotal())
+    setTotal(calcTotal())
+  }, [items, shipping, tax, discount])
+
   return (
     <div className=''>
       <form className='max-w-2xl mx-auto pt-16 sm:py-24 sm:px-6 lg:max-w-7xl lg:px-8'>
         <div className='px-4 space-y-2 sm:px-0 sm:flex sm:items-baseline sm:justify-between sm:space-y-0'>
           <div className='flex sm:items-baseline sm:space-x-4'>
             <h1 className='text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl'>
-              New Order
+              New Invoice
             </h1>
-            <a
-              href='#'
-              className='hidden text-sm font-medium text-rose-600 hover:text-rose-500 sm:block'
+          </div>
+          <div className='mt-4 sm:mt-0 sm:ml-4 '>
+            <label
+              htmlFor='file-upload'
+              className='relative flex items-center px-4 py-2 text-sm font-medium text-white bg-rose-600 border border-transparent rounded-md shadow-sm cursor-pointer hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500'
             >
-              View invoice<span aria-hidden='true'> &rarr;</span>
-            </a>
+              <span>Upload Bill</span>
+              <input
+                id='file-upload'
+                name='file-upload'
+                type='file'
+                className='sr-only'
+              />
+            </label>
+
+            <p className='mt-2 text-sm text-gray-500'>
+              PNG, JPG, GIF up to 10MB
+            </p>
           </div>
           <p className='text-sm text-gray-600'>
             Last Updated{' '}
             <time
               // todays date
-              dateTime={new Date().toISOString()}
+              dateTime={new Date().toLocaleDateString()}
               className='font-medium text-gray-900'
             >
               {new Date().toLocaleDateString()}
@@ -262,6 +318,7 @@ export default function AddInvoice() {
                 </label>
                 <input
                   type='number'
+                  min={0}
                   name='shipping'
                   id='shipping'
                   className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-1/2 sm:text-sm border-gray-300 rounded-md'
@@ -278,6 +335,7 @@ export default function AddInvoice() {
                 </label>
                 <input
                   type='number'
+                  min={0}
                   name='tax'
                   id='tax'
                   className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-1/2 sm:text-sm border-gray-300 rounded-md'
@@ -305,6 +363,7 @@ export default function AddInvoice() {
                 </label>
                 <input
                   type='number'
+                  min={0}
                   name='discount'
                   id='discount'
                   className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-1/2 sm:text-sm border-gray-300 rounded-md'
@@ -312,6 +371,58 @@ export default function AddInvoice() {
                   value={discount}
                 />
               </div>
+              {/* Plus button to dynamic add fields for item charges which is a 
+              repeatable component consisting of charge_type and amount */}
+              <div className='py-4 flex items-center justify-between'>
+                <label
+                  htmlFor='item_charges'
+                  className='block text-sm font-medium text-gray-700'
+                >
+                  Extra Charges (if any)
+                </label>
+                <button
+                  type='button'
+                  className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500'
+                  onClick={() => setItemCharges([...itemCharges, ''])}
+                >
+                  <PlusIcon className='-ml-1 mr-2 h-5 w-5' aria-hidden='true' />
+                  Add
+                </button>
+              </div>
+              {itemCharges.map((charge, idx) => (
+                <div
+                  className='py-4 flex items-center justify-between'
+                  key={idx}
+                >
+                  <button
+                    type='button'
+                    // className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded shadow-sm text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500'
+                    onClick={() => handleRemoveItemCharges(idx)}
+                  >
+                    <MinusCircleIcon
+                      className='h-5 w-5 text-rose-600'
+                      aria-hidden='true'
+                    />
+                  </button>
+                  <input
+                    type='text'
+                    name='charge_type'
+                    id='charge_type'
+                    className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-1/3 sm:text-sm border-gray-300 rounded-md'
+                    onChange={(e) => handleItemChargesChange(idx, e)}
+                    placeholder='Charge Type'
+                  />
+                  <input
+                    type='number'
+                    min={0}
+                    name='amount'
+                    id='amount'
+                    className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-1/3 sm:text-sm border-gray-300 rounded-md'
+                    onChange={(e) => handleItemChargesChange(idx, e)}
+                    placeholder='Amount'
+                  />
+                </div>
+              ))}
               <div className='pt-4 flex items-center justify-between'>
                 <dt className='font-medium text-gray-900'>Order total</dt>
                 <dd className='font-medium text-rose-600'>&#8377;{total}</dd>
@@ -322,87 +433,156 @@ export default function AddInvoice() {
 
         {/* Products */}
         <div className='mt-6'>
-          <h2 className='sr-only'>Products purchased</h2>
-
-          <table className='mt-4 w-full text-gray-500 sm:mt-6'>
-            <caption className='sr-only'>Products</caption>
-            <thead className='sr-only text-sm text-gray-700 text-left sm:not-sr-only'>
-              <tr>
-                <th
-                  scope='col'
-                  className='sm:w-2/5 lg:w-1/3 pr-8 py-3 font-normal'
-                >
-                  Product
-                </th>
-                <th
-                  scope='col'
-                  className='hidden w-1/5 pr-8 py-3 font-normal sm:table-cell'
-                >
-                  Unit price
-                </th>
-                <th
-                  scope='col'
-                  className='hidden w-1/5 pr-8 py-3 font-normal sm:table-cell'
-                >
-                  Quantity
-                </th>
-                <th
-                  scope='col'
-                  className='hidden pr-8 py-3 font-normal sm:table-cell'
-                >
-                  Category
-                </th>
-                <th scope='col' className='w-0 py-3 font-normal text-right'>
-                  Item Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className='border-b border-gray-200 divide-y divide-gray-200 text-sm sm:border-t'>
-              {items.map((product) => (
-                <>
-                  <tr key={product.id}>
-                    <td className='py-6 pr-8'>
-                      <div className='flex items-center'>
-                        {/* <img
-                        src={product.imageSrc}
-                        alt={product.imageAlt}
-                        className='w-16 h-16 object-center object-cover rounded mr-6'
-                      /> */}
-                        <div>
-                          <div className='font-medium text-gray-900 capitalize'>
-                            {product.name}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className='hidden py-6 pr-8 sm:table-cell text-gray-800 capitalize'>
-                      &#8377;{product.rate}
-                    </td>
-                    <td className='hidden py-6 pr-8 sm:table-cell text-gray-800 capitalize'>
-                      {product.quantity}
-                    </td>
-
-                    <td className='hidden py-6 pr-8 sm:table-cell text-gray-800 capitalize'>
-                      {product.category.data?.attributes.name}
-                    </td>
-                    <td className='py-6 font-medium text-right whitespace-nowrap text-gray-900'>
-                      &#8377; {calcItemTotal(product)}
-                    </td>
-                  </tr>
-                  {product.item_charges?.map((charge, idx) => (
-                    <div
-                      className='py-4 flex items-center justify-between'
-                      key={idx}
-                    >
-                      <dt className='text-gray-600'>{charge.charge_type}</dt>
-                      <dd className='font-medium '>&#8377;{charge.amount}</dd>
-                    </div>
-                  ))}
-                </>
-              ))}
-            </tbody>
-          </table>
+          {/* Header for product containing Product	Unit price,Quantity,Category, Item Total */}
+          <div className='flex items-center justify-between'>
+            <h2 className='text-2xl font-medium text-gray-900'>Products</h2>
+            <button
+              type='button'
+              className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500'
+              onClick={() => setProducts([...products, ''])}
+            >
+              <PlusIcon className='-ml-1 mr-2 h-5 w-5' aria-hidden='true' />
+              Add Product
+            </button>
+          </div>
+          <div className='mt-6 flex flex-col'>
+            <div className='-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8'>
+              <div className='py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8'>
+                <div className='shadow overflow-hidden border-b border-gray-200 sm:rounded-lg'>
+                  <table className='min-w-full divide-y divide-gray-200'>
+                    <thead className='bg-gray-50'>
+                      <tr>
+                        <th
+                          scope='col'
+                          className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                        >
+                          Product
+                        </th>
+                        <th
+                          scope='col'
+                          className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                        >
+                          Unit price
+                        </th>
+                        <th
+                          scope='col'
+                          className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                        >
+                          Quantity
+                        </th>
+                        <th
+                          scope='col'
+                          className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                        >
+                          Category
+                        </th>
+                        <th
+                          scope='col'
+                          className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                        >
+                          Item Total
+                        </th>
+                        <th
+                          scope='col'
+                          className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className='bg-white divide-y divide-gray-200'>
+                      {products.map((product, idx) => (
+                        <tr key={idx}>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            <input
+                              type='text'
+                              name='product'
+                              id='product'
+                              className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-full sm:text-sm border-gray-300 rounded-md'
+                              onChange={(e) => handleProductChange(idx, e)}
+                              placeholder='Product Name'
+                            />
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            <input
+                              type='number'
+                              min={0}
+                              name='unit_price'
+                              id='unit_price'
+                              className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-full sm:text-sm border-gray-300 rounded-md'
+                              onChange={(e) => handleProductChange(idx, e)}
+                              placeholder='Unit Price'
+                            />
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap'>
+                            <div className='text-sm text-gray-900'>
+                              <input
+                                type='number'
+                                min={0}
+                                name='quantity'
+                                id='quantity'
+                                className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-full sm:text-sm border-gray-300 rounded-md'
+                                onChange={(e) => handleProductChange(idx, e)}
+                                placeholder='Quantity'
+                              />
+                            </div>
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap'>
+                            <div className='text-sm text-gray-900'>
+                              <input
+                                type='text'
+                                name='category'
+                                id='category'
+                                className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-full sm:text-sm border-gray-300 rounded-md'
+                                onChange={(e) => handleProductChange(idx, e)}
+                                placeholder='Category'
+                              />
+                            </div>
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            <input
+                              type='number'
+                              min={0}
+                              name='item_total'
+                              id='item_total'
+                              className='mt-1 shadow-sm focus:ring-rose-500 focus:border-rose-500 block w-full sm:text-sm border-gray-300 rounded-md'
+                              onChange={(e) => handleProductChange(idx, e)}
+                              placeholder='Item Total'
+                            />
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
+                            <button
+                              type='button'
+                              className='text-rose-600 hover:text-rose-900'
+                              onClick={() => handleRemoveProduct(idx)}
+                            >
+                              <MinusCircleIcon
+                                className='h-5 w-5'
+                                aria-hidden='true'
+                              />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Submit button to add invoice to DB */}
+        {products.length > 0 && (
+          <div className='flex justify-end py-2'>
+            <button
+              type='submit'
+              className='inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500'
+            >
+              Submit
+            </button>
+          </div>
+        )}
       </form>
     </div>
   )
