@@ -1,4 +1,4 @@
-import Footer from '@/components/home/footer'
+import Footer from '@/components/home/Footer'
 import Head from 'next/head'
 
 export default function Home({
